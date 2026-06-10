@@ -1,0 +1,24 @@
+[project]
+name = "elm"
+version = "0.1.0"
+description = "Training and evaluation framework for ECG-language models"
+readme = "PLAN.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.9.1",
+    "transformers>=5.2.0",
+    "datasets>=4.4.2",
+    "accelerate>=1.12.0",
+    "peft>=0.18.1",
+    "numpy>=2.4.0",
+    "einops>=0.8.2",
+    "matplotlib>=3.10.8",
+    "torchvision>=0.25.0",
+    "tqdm>=4.67.1",
+    "wandb>=0.24.0",
+    "nltk>=3.9.4",
+    "rouge-score>=0.1.2",
+    "scipy>=1.16.3",
+    "maturin>=1.11.5",
+    "pytest>=9.0.2",
+]
