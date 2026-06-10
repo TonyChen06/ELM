@@ -8,7 +8,13 @@ milestone gates; `tests/` is the 40-test gate suite that every milestone had
 to pass before the next began.
 
 <p align="center">
-  <img src="assets/architecture.png" alt="ELM architecture" width="95%">
+  <b>Before</b> — components duplicated per variant, state flowing sideways through mutable globals:<br>
+  <img src="assets/architecture_before.png" alt="ELM architecture before (main)" width="95%">
+</p>
+
+<p align="center">
+  <b>After</b> — one component per concept, wired one way:<br>
+  <img src="assets/architecture.png" alt="ELM architecture after (tonytry)" width="95%">
 </p>
 
 <p align="center">
