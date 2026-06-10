@@ -40,7 +40,8 @@ def test_mixing_is_lazy_and_additive():
     cfg = Config(**{**CFG, "data": ["ecg-qa-ptbxl-250-2500", "ecg-qa-ptbxl-250-2500"]})
     cfg.mode = "train"
     twice = build_dataset(cfg, build_tokenizer(cfg))
-    one = Config(**CFG); one.mode = "train"
+    one = Config(**CFG)
+    one.mode = "train"
     single = build_dataset(one, build_tokenizer(one))
     assert len(twice) == 2 * len(single)
     assert torch.equal(twice[len(single)]["input_ids"], single[0]["input_ids"])
