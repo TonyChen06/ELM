@@ -137,13 +137,18 @@ class Trainer:
     def load(self, path):
         payload = torch.load(os.path.join(path, "checkpoint.pt"), map_location="cpu", weights_only=False)
         if self.cfg.parallel == "fsdp" and self.cfg.distributed:
-            from torch.distributed.checkpoint.state_dict import StateDictOptions, set_model_state_dict
-            set_model_state_dict(self.model, payload["model"],
-                                 options=StateDictOptions(full_state_dict=True, broadcast_from_rank0=True))
+            # every rank has the full checkpoint; set_* re-shards into DTensors
+            from torch.distributed.checkpoint.state_dict import (StateDictOptions,
+                                                                 set_model_state_dict,
+                                                                 set_optimizer_state_dict)
+            options = StateDictOptions(full_state_dict=True)
+            set_model_state_dict(self.model, payload["model"], options=options)
+            for opt, st in zip(self.optimizers, payload["optimizers"]):
+                set_optimizer_state_dict(self.model, opt, optim_state_dict=st, options=options)
         else:
             dist.unwrap(self.model).load_state_dict(payload["model"])
-        for opt, st in zip(self.optimizers, payload["optimizers"]):
-            opt.load_state_dict(st)
+            for opt, st in zip(self.optimizers, payload["optimizers"]):
+                opt.load_state_dict(st)
         for sched, st in zip(self.schedulers, payload["schedulers"]):
             sched.load_state_dict(st)
         self.state = payload["state"]
