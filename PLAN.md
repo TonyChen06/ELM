@@ -40,20 +40,20 @@ src/
 
 ## Parity matrix
 
-- [ ] Data: HF datasets + mixing, folds, subsets; signal / symbolic / stacked_signal / rgb;
+- [x] Data: HF datasets + mixing, folds, subsets; signal / symbolic / stacked_signal / rgb;
       noise/flatline synthetics; perturb noise/zeros/only_text; ECG + image augmentation;
       truncation preserving signal tokens
-- [ ] Text: chat templates (llama3/qwen2.5/gemma2), label masking for sft/pretrain/rl,
+- [x] Text: chat templates (llama3/qwen2.5/gemma2), label masking for sft/pretrain/rl,
       explicit_thinking, multi-turn
-- [ ] Models: 3 LLM families (+LoRA, scratch, grad ckpt); merl/st_mem/mtae/mlae +
+- [x] Models: 3 LLM families (+LoRA, scratch, grad ckpt); merl/st_mem/mtae/mlae +
       clip/siglip/vit encoders; 4 connectors; llava×2 / elf×3 / ecg_byte; component freezing
-- [ ] Train: sft/pretrain loop, grad accum, clip, early stopping, wandb,
+- [x] Train: sft/pretrain loop, grad accum, clip, early stopping, wandb,
       epoch/step/best/resume ckpts; AdamW & Muon; LR schedules in optimizer steps
-- [ ] RL: SAPO, rollouts, format/tag/answer rewards, degenerate-group DDP safety
-- [ ] Eval: batched + distributed; ACC/F1/BLEU/ROUGE/METEOR; thinking split;
+- [x] RL: SAPO, rollouts, format/tag/answer rewards, degenerate-group DDP safety
+- [x] Eval: batched + distributed; ACC/F1/BLEU/ROUGE/METEOR; thinking split;
       classification + confusion plots; pretrain breakdown; multi-seed stats
-- [ ] Chat CLI
-- [ ] Megatron subset: FSDP2, DCP, mixed precision, MFU logging, compile
+- [x] Chat CLI
+- [x] Megatron subset: FSDP2, DCP, mixed precision, MFU logging, compile
 
 ## Milestones (gate each before the next)
 
