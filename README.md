@@ -1,3 +1,11 @@
+# 👋 Hi — I played around with Claude 5 and made this refactor
+
+> **Fair warning:** I didn't spend too long on this and it's possibly very
+> flawed. See if there's anything you like about it — but also feel free to
+> never use it if it's bad, cuz it might be.
+
+---
+
 # ELM `tonytry` — the framework, rebuilt from scratch
 
 A ground-up rewrite of the ELM training/eval framework on an orphan branch:
