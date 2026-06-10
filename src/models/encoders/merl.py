@@ -36,5 +36,5 @@ class Merl(nn.Module):
         self.pool = nn.AdaptiveAvgPool1d(num_tokens)
 
     def forward(self, ecg):
-        x = self.stages(self.stem(ecg.float()))
+        x = self.stages(self.stem(ecg.to(self.stem[0].weight.dtype)))
         return self.pool(x).transpose(1, 2)  # (B, num_tokens, 2048)

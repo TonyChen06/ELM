@@ -100,5 +100,5 @@ class MaskedViT1d(nn.Module):
         return x[:, 1:]
 
     def forward(self, ecg):
-        x = self.tokens(ecg.float())
+        x = self.tokens(ecg.to(self.embed[1].weight.dtype))  # live dtype: works under FSDP mixed precision
         return self.pool(x.transpose(1, 2)).transpose(1, 2)
