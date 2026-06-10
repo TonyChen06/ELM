@@ -72,14 +72,13 @@ class Trainer:
                         self.save("step")
                 if cfg.dev and i >= 1:
                     break
-            epoch_loss = running / max(n_batches, 1)
+            epoch_loss = self._bcast_value(running / max(n_batches, 1))
             self.state["epoch"] = epoch + 1
             self.state["epoch_losses"].append(epoch_loss)
-            if dist.is_main():
-                if epoch_loss < self.state["best_loss"]:
-                    self.state["best_loss"] = epoch_loss
-                    self.save("best")
-                self.save("last")
+            if epoch_loss < self.state["best_loss"]:  # every rank: save() gathers collectively
+                self.state["best_loss"] = epoch_loss
+                self.save("best")
+            self.save("last")
             if self.should_stop():
                 if dist.is_main():
                     print(f"early stop at epoch {epoch} (loss {epoch_loss:.4f})")
@@ -98,29 +97,51 @@ class Trainer:
         return self._bcast(stop)
 
     def _bcast(self, flag):
+        return bool(self._bcast_value(float(flag)))
+
+    def _bcast_value(self, value):
         if not self.cfg.distributed:
-            return flag
-        t = torch.tensor(int(flag), device=dist.device())
+            return value
+        t = torch.tensor(value, device=dist.device())
         torch.distributed.broadcast(t, src=0)
-        return bool(t.item())
+        return t.item()
 
     def log(self, **metrics):
         if self.cfg.wandb and dist.is_main():
             import wandb
             wandb.log({f"train/{k}": v for k, v in metrics.items()}, step=self.state["step"])
 
+    def _gathered_state(self):
+        """Full (unsharded) model/optimizer state dicts; collective under FSDP."""
+        if self.cfg.parallel == "fsdp" and self.cfg.distributed:
+            from torch.distributed.checkpoint.state_dict import (StateDictOptions,
+                                                                 get_model_state_dict,
+                                                                 get_optimizer_state_dict)
+            options = StateDictOptions(full_state_dict=True, cpu_offload=True)
+            return (get_model_state_dict(self.model, options=options),
+                    [get_optimizer_state_dict(self.model, o, options=options) for o in self.optimizers])
+        return (dist.unwrap(self.model).state_dict(),
+                [o.state_dict() for o in self.optimizers])
+
     def save(self, tag):
+        model_state, opt_states = self._gathered_state()
+        if not dist.is_main():
+            return
         path = os.path.join(self.cfg.run_dir, tag)
         os.makedirs(path, exist_ok=True)
-        torch.save({"model": dist.unwrap(self.model).state_dict(),
-                    "optimizers": [o.state_dict() for o in self.optimizers],
+        torch.save({"model": model_state, "optimizers": opt_states,
                     "schedulers": [s.state_dict() for s in self.schedulers],
                     "state": self.state, "config": vars(self.cfg)},
                    os.path.join(path, "checkpoint.pt"))
 
     def load(self, path):
         payload = torch.load(os.path.join(path, "checkpoint.pt"), map_location="cpu", weights_only=False)
-        dist.unwrap(self.model).load_state_dict(payload["model"])
+        if self.cfg.parallel == "fsdp" and self.cfg.distributed:
+            from torch.distributed.checkpoint.state_dict import StateDictOptions, set_model_state_dict
+            set_model_state_dict(self.model, payload["model"],
+                                 options=StateDictOptions(full_state_dict=True, broadcast_from_rank0=True))
+        else:
+            dist.unwrap(self.model).load_state_dict(payload["model"])
         for opt, st in zip(self.optimizers, payload["optimizers"]):
             opt.load_state_dict(st)
         for sched, st in zip(self.schedulers, payload["schedulers"]):
