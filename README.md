@@ -7,6 +7,14 @@ mixed-precision policy / MFU telemetry / first-class `torch.compile`, in
 milestone gates; `tests/` is the 40-test gate suite that every milestone had
 to pass before the next began.
 
+<p align="center">
+  <img src="assets/architecture.png" alt="ELM architecture" width="95%">
+</p>
+
+<p align="center">
+  <img src="assets/lines.png" alt="Lines per subsystem, before vs after" width="90%">
+</p>
+
 ## The structure, before and after
 
 ### Before (`main`, 5,923 lines) — components duplicated per variant
