@@ -15,6 +15,8 @@ class HFVision(nn.Module):
     def forward(self, **features):
         if hasattr(self.model, "get_image_features"):  # CLIP, SigLIP2
             out = self.model.get_image_features(**features)
+            if not isinstance(out, torch.Tensor):  # transformers 5.x returns an output object
+                out = out.pooler_output
             return out.unsqueeze(1) if out.ndim == 2 else out
         out = self.model(**features).last_hidden_state  # plain ViT
         return out.mean(dim=1, keepdim=True)
