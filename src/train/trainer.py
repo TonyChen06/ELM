@@ -35,9 +35,9 @@ class Trainer:
         for opt in self.optimizers:
             opt.zero_grad(set_to_none=True)
 
-    def loss_step(self, batch):
-        out = self.model(**batch)
-        return out.loss, {}
+    @staticmethod
+    def loss_step(model, batch):
+        return model(**batch).loss, {}
 
     def fit(self):
         cfg = self.cfg
@@ -51,7 +51,7 @@ class Trainer:
             self.zero_grad()
             for i, batch in enumerate(progress):
                 batch = {k: v.to(device, non_blocking=True) for k, v in batch.items()}
-                loss, metrics = self.step_fn(batch)
+                loss, metrics = self.step_fn(self.model, batch)
                 (loss / cfg.grad_accum_steps).backward()
                 running += loss.item()
                 n_batches += 1
