@@ -6,10 +6,9 @@ import json
 import os
 from collections import Counter
 
-import torch
 
 import dist
-from config import parse_config
+from config import parse_config, set_seed
 from data.dataset import build_dataset
 from data.templates import build_tokenizer
 from evaluate import evaluate, summarize_seeds
@@ -66,24 +65,31 @@ def save_artifacts(out, prefix):
         b = out["pretrain_breakdown"]
         barh([(k, b.get(k, 0)) for k in ("matched", "not_matched", "other")],
              f"{prefix}_pretrain_match.png", f"pretrain match (N={b['n']})")
+        barh([(k, b.get(k, 0)) for k in ("only_missed", "only_extra", "both")],
+             f"{prefix}_pretrain_partition.png", "mismatch partition")
+        barh([(k, b.get(k, 0)) for k in ("missed_inst", "extra_inst")],
+             f"{prefix}_pretrain_disagreement.png", "per-instance disagreement")
         barh(b["top_missed"], f"{prefix}_pretrain_missed.png", "top missed statements")
         barh(b["top_extra"], f"{prefix}_pretrain_extra.png", "top extra statements")
 
 
 def main():
     cfg = parse_config(mode="eval")
+    dist.set_device(cfg.device)
     dist.setup(cfg)
     try:
         tokenizer = build_tokenizer(cfg)
         model = dist.parallelize(build_elm(cfg, tokenizer), cfg)
         os.makedirs(cfg.run_dir, exist_ok=True)
-        prefix = os.path.join(cfg.run_dir, f"eval_{'_'.join(cfg.data)}_{cfg.max_new_tokens}")
+        prompt_name = os.path.splitext(os.path.basename(cfg.system_prompt))[0] if cfg.system_prompt else "noprompt"
+        prefix = os.path.join(cfg.run_dir,
+                              f"eval_{'_'.join(cfg.data)}_{prompt_name}_{cfg.perturb or 'none'}_{cfg.max_new_tokens}")
         per_seed = []
         for seed in cfg.eval_seeds:
             if dist.is_main():
                 print(f"fold {cfg.fold} seed {seed}")
             cfg.seed = seed
-            torch.manual_seed(seed)
+            set_seed(seed)
             dataset = build_dataset(cfg, tokenizer)
             out = evaluate(cfg, model, dataset)
             per_seed.append(out)

@@ -6,7 +6,18 @@ The CLI is generated from the dataclass fields: every field becomes
 """
 import argparse
 import os
+import random
 from dataclasses import MISSING, dataclass, field, fields
+
+
+def set_seed(seed: int):
+    import numpy as np
+    import torch
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 @dataclass
@@ -83,6 +94,7 @@ class Config:
     resume: str = ""                                    # checkpoint dir to resume from
 
     # parallelism / performance
+    device: str = ""                                    # override, e.g. "cpu" (default: auto)
     parallel: str = "ddp"                               # ddp | fsdp (when launched via torchrun)
     compile: bool = False
     param_dtype: str = "bfloat16"

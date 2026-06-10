@@ -36,8 +36,9 @@ def build_optimizer(cfg, model):
     lr, wd = cfg.lr * scale, _wd(cfg, scale)
     trainable = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
     def adamw(params, alr):
-        return torch.optim.AdamW(params, lr=alr, betas=tuple(cfg.betas), eps=cfg.eps,
-                                 weight_decay=wd, fused=torch.cuda.is_available())
+        cls = torch.optim.Adam if cfg.optimizer == "adam" else torch.optim.AdamW
+        return cls(params, lr=alr, betas=tuple(cfg.betas), eps=cfg.eps,
+                   weight_decay=wd, fused=torch.cuda.is_available())
 
     if cfg.optimizer == "muon":
         from torch.optim import Muon
@@ -50,7 +51,7 @@ def build_optimizer(cfg, model):
                      ns_steps=cfg.muon_ns_steps, weight_decay=wd),
                 adamw(rest, lr * cfg.muon_adamw_lr_ratio)]
     if dist.is_main():
-        print(f"[optim] adamw({len(trainable)}p) lr={lr:.2e} wd={wd:.2e} scale={scale:.3g}")
+        print(f"[optim] {cfg.optimizer}({len(trainable)}p) lr={lr:.2e} wd={wd:.2e} scale={scale:.3g}")
     return [adamw([p for _, p in trainable], lr)]
 
 

@@ -65,6 +65,8 @@ def evaluate(cfg, model, dataset):
                 cut = next((i for i, t in enumerate(ids) if t in stop), len(ids))
                 text = dataset.tok.decode(ids[:cut], skip_special_tokens=True).strip()
                 prompt = dataset.tok.decode(turn["input_ids"].tolist(), skip_special_tokens=True).strip()
+                if cfg.dev and dist.is_main():
+                    print(f"\n[turn {turn['order']}]\nGT: {turn['gt']}\nGen: {text}\n" + "-" * 80)
                 results.append((turn["order"], prompt, turn["gt"], text))
 
     results = sorted(r for shard in dist.all_gather_object(results) for r in shard)
@@ -141,8 +143,12 @@ def pretrain_breakdown(refs, hyps):
             counts["matched"] += 1
         else:
             counts["not_matched"] += 1
-            missed.update(a - b)
-            extra.update(b - a)
+            m, e = a - b, b - a
+            missed.update(m)
+            extra.update(e)
+            counts["missed_inst"] += bool(m)
+            counts["extra_inst"] += bool(e)
+            counts["both" if (m and e) else ("only_missed" if m else "only_extra")] += 1
     return {"n": len(refs), **counts,
             "top_missed": missed.most_common(15), "top_extra": extra.most_common(15)}
 

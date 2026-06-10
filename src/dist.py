@@ -38,10 +38,24 @@ def is_main() -> bool:
     return rank() == 0
 
 
+_DEVICE_OVERRIDE = None
+
+
+def set_device(name: str):
+    global _DEVICE_OVERRIDE
+    _DEVICE_OVERRIDE = name or None
+
+
 def device() -> torch.device:
+    if _DEVICE_OVERRIDE:
+        return torch.device(_DEVICE_OVERRIDE)
     if torch.cuda.is_available():
         return torch.device(f"cuda:{local_rank()}")
     return torch.device("cpu")
+
+
+def broadcast_object(obj):
+    return all_gather_object(obj)[0]
 
 
 def all_gather_object(obj):

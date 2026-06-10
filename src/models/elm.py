@@ -96,7 +96,12 @@ def build_elm(cfg, tokenizer):
         encoder = enc_spec.build(cfg)
         if cfg.encoder_ckpt:
             state = torch.load(cfg.encoder_ckpt, map_location="cpu", weights_only=True)
-            encoder.load_state_dict(state.get("model_state_dict", state), strict=False)
+            result = encoder.load_state_dict(state.get("model_state_dict", state), strict=False)
+            import dist
+            if dist.is_main():
+                print(f"[encoder] loaded {cfg.encoder_ckpt}: "
+                      f"{len(encoder.state_dict()) - len(result.missing_keys)} matched, "
+                      f"{len(result.missing_keys)} missing, {len(result.unexpected_keys)} unexpected")
         in_dim = enc_spec.embed_dim or encoder.embed_dim
     else:
         in_dim = None

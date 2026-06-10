@@ -55,6 +55,7 @@ class _VisionRep:
                     T.RandomApply([T.ColorJitter(brightness=0.2)], p=0.5),
                     T.RandomApply([T.RandomRotation(5)], p=0.5),
                     T.RandomApply([T.GaussianBlur(5, sigma=(0.0, 1.5))], p=0.5),
+                    T.RandomApply([T.ColorJitter(hue=0.08, saturation=0.3)], p=0.5),
                 ])
         if self.augment is not None:
             image = self.augment(image)

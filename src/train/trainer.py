@@ -65,7 +65,7 @@ class Trainer:
                         sched.step()
                     self.zero_grad()
                     self.state["step"] += 1
-                    self.log(loss=running / n_batches, lr=self.schedulers[0].get_last_lr()[0],
+                    self.log(loss=running / n_batches, epoch=epoch, lr=self.schedulers[0].get_last_lr()[0],
                              tokens_per_s=tokens / (time.perf_counter() - t0),
                              mfu=self.mfu(tokens, time.perf_counter() - t0), **metrics)
                     if cfg.save_steps and self.state["step"] % cfg.save_steps == 0:
