@@ -70,6 +70,60 @@ def train_dev_break(enabled: bool, batch: dict, loss_value: float) -> bool:
     return broadcast_value(should_break, src=0)
 
 
+def assert_max_batch_fits(model, batch: dict, args, optimizer=None, margin: float = 0.10) -> None:
+    if batch is None or not torch.cuda.is_available():
+        return
+    F, ids = torch.nn.functional, batch["elm_input_ids"]
+    pad = args.llm_input_len - ids.shape[1]
+    if pad <= 0:
+        return  # first batch already at the cap; training itself already stresses it
+    probe = dict(batch)
+    probe["elm_input_ids"] = F.pad(ids, (pad, 0), value=int(ids.reshape(-1)[0]))
+    probe["elm_attention_mask"] = F.pad(batch["elm_attention_mask"], (pad, 0), value=0)
+    if "elm_labels" in batch:
+        probe["elm_labels"] = F.pad(batch["elm_labels"], (pad, 0), value=-100)
+    if "signal_id_indices" in batch:
+        probe["signal_id_indices"] = torch.where(batch["signal_id_indices"] >= 0, batch["signal_id_indices"] + pad, batch["signal_id_indices"])
+    device = next(model.parameters()).device
+    probe = {k: batch_to_device(v, device) for k, v in probe.items()}
+    # snapshot trainable weights on CPU so real optimizer steps (which allocate the true
+    # optimizer state and its transients) can be undone, leaving training state untouched
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    snapshot = [p.detach().cpu().clone() for p in trainable]
+    peak = 0
+    torch.cuda.reset_peak_memory_stats(device)
+    try:
+        for _ in range(2):  # step 1 allocates optimizer state; step 2 runs a backward with it resident
+            model(**probe).loss.backward()
+            if optimizer is not None:
+                optimizer.step_and_update_lr()
+                optimizer.zero_grad()
+            else:
+                model.zero_grad(set_to_none=True)
+        peak = torch.cuda.max_memory_allocated(device)
+    except torch.cuda.OutOfMemoryError as e:
+        raise RuntimeError(f"[fit-check] worst-case batch (batch_size={ids.shape[0]} x llm_input_len="
+                           f"{args.llm_input_len}) does not fit; lower --batch_size / --llm_input_len or "
+                           f"add --gradient_checkpointing. ({e})") from e
+    finally:
+        with torch.no_grad():
+            for p, s in zip(trainable, snapshot):
+                p.copy_(s.to(device))
+        if optimizer is not None:
+            optimizer.reset_state()
+        model.zero_grad(set_to_none=True)
+        torch.cuda.empty_cache()
+    free, _ = torch.cuda.mem_get_info(device)
+    budget = free + torch.cuda.memory_allocated(device)  # free accounts for other processes; + our resident params
+    gb = 1024 ** 3
+    if peak * (1 + margin) > budget:
+        raise RuntimeError(f"[fit-check] worst-case peak ~{peak / gb:.1f} GB leaves <{margin:.0%} headroom of "
+                           f"{budget / gb:.1f} GB available; lower --batch_size / --llm_input_len or add "
+                           f"--gradient_checkpointing.")
+    if is_main():
+        print(f"[fit-check] OK: worst-case ~{peak / gb:.1f} GB / {budget / gb:.1f} GB available ({margin:.0%} margin kept).")
+
+
 class GPUSetup:
     def __init__(self, args: argparse.Namespace):
         self.args = args

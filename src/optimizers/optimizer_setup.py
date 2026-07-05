@@ -143,6 +143,12 @@ class Optimizer:
 
         return MuonAdamW(muon_opt, adamw_opt, adamw_lr_ratio)
 
+    def reset_state(self):
+        """Drop optimizer state + step counter (used by the fit-check to undo its probe steps)."""
+        self.n_current_steps = 0
+        for opt in ((self.optimizer.muon, self.optimizer.adamw) if self._is_muon else (self.optimizer,)):
+            opt.state.clear()
+
     def _log_config(self):
         if is_main():
             if self._is_muon:
